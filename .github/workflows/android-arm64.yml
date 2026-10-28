@@ -27,11 +27,28 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          accept-android-sdk-licenses: false
+
+      - name: Accept Android SDK licenses
+        shell: bash
+        run: |
+          set +o pipefail
+          yes | sdkmanager --licenses
 
       - name: Install cargo-ndk
         run: cargo install cargo-ndk --locked
 
+      - name: Show toolchain versions
+        run: |
+          rustc --version
+          cargo --version
+          cargo ndk --version
+          sdkmanager --version
+
       - name: Build SteelMC for Android ARM64
+        env:
+          CARGO_TERM_COLOR: always
         run: |
           cargo ndk \
             --target aarch64-linux-android \
@@ -41,12 +58,15 @@ jobs:
             -p steel \
             --no-default-features
 
-      - name: Verify binary
+      - name: Verify Android ARM64 binary
+        shell: bash
         run: |
           set -euxo pipefail
           BIN="target/aarch64-linux-android/release/steel"
           test -s "$BIN"
           file "$BIN"
+          readelf -h "$BIN" | tee /tmp/elf-header.txt
+          grep -q "AArch64" /tmp/elf-header.txt
           mkdir -p artifacts
           cp "$BIN" artifacts/steel-android-arm64
 
